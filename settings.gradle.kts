@@ -6,9 +6,11 @@ pluginManagement {
     }
 
     plugins {
-        id("com.android.application") version "8.1.1"
-        id("com.android.library") version "8.1.1"
-        id("org.jetbrains.kotlin.android") version "1.9.22"
+        id("com.android.application") version "8.3.2"
+        id("com.android.library") version "8.3.2"
+        // Use Kotlin DSL style and declare both Android and Kapt plugins with versions
+        kotlin("android") version "1.9.22"
+        kotlin("kapt") version "1.9.22"
         id("com.google.dagger.hilt.android") version "2.50"
     }
 }
