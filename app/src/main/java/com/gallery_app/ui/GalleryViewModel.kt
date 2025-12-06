@@ -7,32 +7,59 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gallery_app.data.GalleryImage
 import com.gallery_app.data.MediaScanner
+import com.gallery_app.data.db.MediaEntity
+import com.gallery_app.data.repository.MediaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class GalleryViewModel @Inject constructor(
-    private val scanner: MediaScanner
+    private val scanner: MediaScanner,
+    private val mediaRepository: MediaRepository
 ) : ViewModel() {
 
-    // public observable list of images for the UI
     var images by mutableStateOf<List<GalleryImage>>(emptyList())
         private set
 
-    // optional: keep count derived from images for backward compatibility
-    val imageCount: Int
-        get() = images.size
+    var dbImages by mutableStateOf<List<MediaEntity>>(emptyList())
+        private set
+
+    init {
+        observeDatabase()
+    }
+
+    private fun observeDatabase() {
+        viewModelScope.launch {
+            mediaRepository.getAllMedia().collectLatest { list ->
+                dbImages = list
+            }
+        }
+    }
 
     fun scanImages() {
         viewModelScope.launch {
-            try {
-                val loaded = scanner.loadImages()
-                images = loaded
-            } catch (t: Throwable) {
-                // handle/log error if needed
-                images = emptyList()
+            val loaded = scanner.loadImages()
+            images = loaded
+            syncToDatabase(loaded)
+        }
+    }
+
+    private fun syncToDatabase(list: List<GalleryImage>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val entities = list.map {
+                MediaEntity(
+                    id = it.id,
+                    uri = it.uri,
+                    bucket = it.bucketName,
+                    dateTaken = it.dateTaken,
+                    size = it.size
+                )
             }
+            mediaRepository.clear()
+            mediaRepository.insertAll(entities)
         }
     }
 }
