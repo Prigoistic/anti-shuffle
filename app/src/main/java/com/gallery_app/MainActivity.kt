@@ -4,13 +4,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import com.gallery_app.ui.PermissionScreen
+import androidx.compose.runtime.*
 import com.gallery_app.ui.GalleryHomeScreen
+import com.gallery_app.ui.PermissionScreen
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -20,14 +16,14 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 var permissionGranted by remember { mutableStateOf(false) }
-                if(!permissionGranted){
-                    PermissionScreen{
+
+                if (!permissionGranted) {
+                    PermissionScreen {
                         permissionGranted = true
                     }
-                }else{
+                } else {
                     GalleryHomeScreen()
                 }
-
             }
         }
     }
