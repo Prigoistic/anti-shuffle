@@ -26,13 +26,13 @@ fun GalleryHomeScreen(
         viewModel.scanImages()
     }
 
-    val imgs = viewModel.images
+    val uiState by viewModel.uiState.collectAsState()
 
-    // 🔥 Loading State
-    if (imgs.isEmpty()) {
-        LoadingScreen()
-    } else {
-        ImageGrid(imgs)
+    when (val state = uiState) {
+        is GalleryUiState.Loading -> LoadingScreen()
+        is GalleryUiState.Empty -> EmptyScreen()
+        is GalleryUiState.Error -> ErrorScreen(state.message)
+        is GalleryUiState.Success -> ImageGrid(state.images)
     }
 }
 
@@ -49,6 +49,30 @@ fun LoadingScreen() {
             Spacer(modifier = Modifier.height(16.dp))
             Text("Loading images…", style = MaterialTheme.typography.bodyMedium)
         }
+    }
+}
+
+@Composable
+fun EmptyScreen() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("No images found", style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+fun ErrorScreen(message: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("Error: $message", style = MaterialTheme.typography.bodyMedium)
     }
 }
 

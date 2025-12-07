@@ -9,7 +9,9 @@
 
     <application
         android:name=".App"
-        android:label="Gallery App"
+        android:label="Anti Shuffle"
+        android:icon="@drawable/ic_launcher"
+        android:roundIcon="@drawable/ic_launcher_round"
         android:allowBackup="true"
         android:supportsRtl="true"
         android:theme="@style/Theme.Material3.DayNight">

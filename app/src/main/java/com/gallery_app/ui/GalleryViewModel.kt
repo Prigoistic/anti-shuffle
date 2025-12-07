@@ -1,16 +1,18 @@
 package com.gallery_app.ui
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gallery_app.data.GalleryImage
 import com.gallery_app.data.MediaScanner
-import com.gallery_app.data.db.MediaEntity
 import com.gallery_app.data.repository.MediaRepository
+import com.gallery_app.data.mappers.toEntity
+import com.gallery_app.data.mappers.toGalleryImage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -21,11 +23,8 @@ class GalleryViewModel @Inject constructor(
     private val mediaRepository: MediaRepository
 ) : ViewModel() {
 
-    var images by mutableStateOf<List<GalleryImage>>(emptyList())
-        private set
-
-    var dbImages by mutableStateOf<List<MediaEntity>>(emptyList())
-        private set
+    private val _uiState = MutableStateFlow<GalleryUiState>(GalleryUiState.Loading)
+    val uiState: StateFlow<GalleryUiState> = _uiState
 
     init {
         observeDatabase()
@@ -33,31 +32,28 @@ class GalleryViewModel @Inject constructor(
 
     private fun observeDatabase() {
         viewModelScope.launch {
-            mediaRepository.getAllMedia().collectLatest { list ->
-                dbImages = list
-            }
+            mediaRepository
+                .getAllMedia()
+                .map { entities -> entities.map { it.toGalleryImage() } }
+                .collectLatest { list ->
+                    _uiState.value = when {
+                        list.isEmpty() -> GalleryUiState.Empty
+                        else -> GalleryUiState.Success(list)
+                    }
+                }
         }
     }
 
     fun scanImages() {
         viewModelScope.launch {
             val loaded = scanner.loadImages()
-            images = loaded
             syncToDatabase(loaded)
         }
     }
 
     private fun syncToDatabase(list: List<GalleryImage>) {
         viewModelScope.launch(Dispatchers.IO) {
-            val entities = list.map {
-                MediaEntity(
-                    id = it.id,
-                    uri = it.uri,
-                    bucket = it.bucketName,
-                    dateTaken = it.dateTaken,
-                    size = it.size
-                )
-            }
+            val entities = list.map { it.toEntity() }
             mediaRepository.clear()
             mediaRepository.insertAll(entities)
         }
