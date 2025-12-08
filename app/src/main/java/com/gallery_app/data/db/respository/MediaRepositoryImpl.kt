@@ -15,6 +15,14 @@ class MediaRepositoryImpl @Inject constructor(
         return mediaDao.getAll()
     }
 
+    override fun getById(id: Long): Flow<MediaEntity?> {
+        return mediaDao.getById(id)
+    }
+
+    override fun getByBucket(bucketName: String): Flow<List<MediaEntity>> {
+        return mediaDao.getByBucket(bucketName)
+    }
+
     override suspend fun insertAll(mediaList: List<MediaEntity>) {
         mediaDao.insertAll(mediaList)
     }
