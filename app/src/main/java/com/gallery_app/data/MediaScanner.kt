@@ -25,7 +25,12 @@ class MediaScanner(private val context: Context) {
                 MediaStore.Images.Media._ID,
                 MediaStore.Images.Media.DATE_TAKEN,
                 MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
-                MediaStore.Images.Media.SIZE
+                MediaStore.Images.Media.SIZE,
+                MediaStore.Images.Media.WIDTH,
+                MediaStore.Images.Media.HEIGHT,
+                MediaStore.Images.Media.ORIENTATION,
+                MediaStore.Images.Media.MIME_TYPE,
+                MediaStore.Images.Media.DATE_ADDED
             )
 
             val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
@@ -47,7 +52,7 @@ class MediaScanner(private val context: Context) {
                     val id = cursor.getLong(idCol)
                     val uriStr = "${uri}/$id"
                     val date = cursor.getLong(dateCol)
-                    val bucket = cursor.getString(bucketCol)
+                    val bucket = cursor.getString(bucketCol) ?: "Unknown"
                     val size = cursor.getLong(sizeCol)
 
                     images.add(

@@ -1,5 +1,6 @@
 package com.gallery_app.ui.screens
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -7,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Refresh
@@ -16,12 +16,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.gallery_app.data.GalleryImage
+import com.gallery_app.image.ThumbnailLoader
 import com.gallery_app.ui.GalleryUiState
 import com.gallery_app.ui.GalleryViewModel
 import com.gallery_app.ui.theme.*
@@ -43,6 +49,7 @@ fun GalleryScreen(
     }
 
     val uiState by viewModel.uiState.collectAsState()
+    val pagedImages = viewModel.pagedMedia.collectAsLazyPagingItems()
 
     Column(
         modifier = Modifier
@@ -50,7 +57,7 @@ fun GalleryScreen(
             .background(BrutalColors.OffWhite)
     ) {
         BrutalTopAppBar(
-            title = "GALLERY",
+            title = "Anti - Shuffle",
             backgroundColor = BrutalColors.Cyan,
             actions = {
                 BrutalIconButton(
@@ -75,8 +82,8 @@ fun GalleryScreen(
                 is GalleryUiState.Empty -> EmptyScreen(onOpenFolders, onRefresh = { viewModel.scanImages() })
                 is GalleryUiState.Error -> ErrorScreen(state.message)
                 is GalleryUiState.Success -> {
-                    GalleryGrid(
-                        items = state.images,
+                    PagedGalleryGrid(
+                        pagingItems = pagedImages,
                         onImageClick = onImageClick
                     )
                 }
@@ -189,8 +196,8 @@ private fun ErrorScreen(msg: String) {
 }
 
 @Composable
-private fun GalleryGrid(
-    items: List<GalleryImage>,
+private fun PagedGalleryGrid(
+    pagingItems: LazyPagingItems<GalleryImage>,
     onImageClick: (Long) -> Unit
 ) {
     LazyVerticalGrid(
@@ -202,25 +209,84 @@ private fun GalleryGrid(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        items(items, key = { it.id }) { item ->
-            BrutalImageContainer(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-            ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(item.uri)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
+        items(
+            count = pagingItems.itemCount,
+            key = { index -> 
+                pagingItems.peek(index)?.id ?: index
+            }
+        ) { index ->
+            val item = pagingItems[index]
+            val context = LocalContext.current
+            if (item != null) {
+                BrutalImageContainer(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .clickable { onImageClick(item.id) }
-                )
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                ) {
+                    AsyncImage(
+                        model = ThumbnailLoader.createThumbnailRequest(
+                            context = context,
+                            mediaId = item.id,
+                            targetSize = 400
+                        ),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable { onImageClick(item.id) }
+                    )
+                }
+            } else {
+                // Placeholder shimmer
+                ShimmerImagePlaceholder()
             }
         }
+        
+        // Loading state at the bottom
+        when (pagingItems.loadState.append) {
+            is LoadState.Loading -> {
+                items(6) {
+                    ShimmerImagePlaceholder()
+                }
+            }
+            else -> {}
+        }
+    }
+}
+
+@Composable
+private fun ShimmerImagePlaceholder() {
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer"
+    )
+
+    val brush = Brush.linearGradient(
+        colors = listOf(
+            BrutalColors.OffWhite,
+            BrutalColors.White,
+            BrutalColors.OffWhite
+        ),
+        start = Offset(translateAnim - 1000f, translateAnim - 1000f),
+        end = Offset(translateAnim, translateAnim)
+    )
+
+    BrutalImageContainer(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(brush)
+        )
     }
 }
 

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.gallery_app.data.db.MediaDatabase
 import com.gallery_app.data.db.MediaDao
+import com.gallery_app.data.sync.ScanMetadataDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -22,8 +23,18 @@ object DatabaseModule {
             context,
             MediaDatabase::class.java,
             "media_db"
-        ).build()
+        )
+        .addMigrations(
+            MediaDatabase.MIGRATION_1_2,
+            MediaDatabase.MIGRATION_2_3,
+            MediaDatabase.MIGRATION_3_4
+        )
+        .fallbackToDestructiveMigration() // Fallback if migration fails
+        .build()
 
     @Provides
     fun provideMediaDao(db: MediaDatabase): MediaDao = db.mediaDao()
+
+    @Provides
+    fun provideScanMetadataDao(db: MediaDatabase): ScanMetadataDao = db.scanMetadataDao()
 }
