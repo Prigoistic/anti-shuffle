@@ -29,11 +29,7 @@ class MediaSyncScheduler @Inject constructor(
             30, TimeUnit.MINUTES // Flex interval
         )
             .setConstraints(constraints)
-            .setBackoffCriteria(
-                BackoffPolicy.EXPONENTIAL,
-                WorkRequest.MIN_BACKOFF_MILLIS,
-                TimeUnit.MILLISECONDS
-            )
+            // Note: Cannot set backoff criteria when requiresDeviceIdle is true
             .addTag(MediaSyncWorker.TAG)
             .build()
 
