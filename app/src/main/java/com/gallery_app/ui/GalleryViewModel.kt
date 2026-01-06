@@ -56,6 +56,16 @@ class GalleryViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
+    // Get paged media for a specific bucket/folder
+    fun getPagedMediaByBucket(bucketName: String): Flow<PagingData<GalleryImage>> {
+        return mediaRepository
+            .getPagedByBucket(bucketName)
+            .map { pagingData ->
+                pagingData.map { it.toGalleryImage() }
+            }
+            .cachedIn(viewModelScope)
+    }
+
     init {
         checkDatabaseState()
     }

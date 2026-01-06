@@ -5,21 +5,21 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.gallery_app.ui.GalleryUiState
+import com.gallery_app.image.ThumbnailLoader
 import com.gallery_app.ui.GalleryViewModel
 import com.gallery_app.ui.theme.*
 
@@ -31,12 +31,10 @@ fun FolderGalleryScreen(
     onImageClick: (Long) -> Unit,
     onBack: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-
-    val filteredImages = when (val s = uiState) {
-        is GalleryUiState.Success -> s.images.filter { it.bucketName == bucket }
-        else -> emptyList()
-    }
+    // Get paged images for this specific bucket
+    val pagedImages = remember(bucket) {
+        viewModel.getPagedMediaByBucket(bucket)
+    }.collectAsLazyPagingItems()
 
     Column(
         modifier = Modifier
@@ -57,10 +55,10 @@ fun FolderGalleryScreen(
         )
 
         when {
-            uiState is GalleryUiState.Loading -> {
+            pagedImages.loadState.refresh is LoadState.Loading -> {
                 BrutalLoadingBox()
             }
-            filteredImages.isEmpty() -> {
+            pagedImages.itemCount == 0 && pagedImages.loadState.refresh is LoadState.NotLoading -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -86,27 +84,53 @@ fun FolderGalleryScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(filteredImages, key = { it.id }) { item ->
-                        BrutalImageContainer(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(1f)
-                        ) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(item.uri)
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
+                    items(
+                        count = pagedImages.itemCount,
+                        key = { index -> pagedImages.peek(index)?.id ?: index }
+                    ) { index ->
+                        val item = pagedImages[index]
+                        val context = LocalContext.current
+                        if (item != null) {
+                            BrutalImageContainer(
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .clickable { onImageClick(item.id) }
-                            )
+                                    .fillMaxWidth()
+                                    .aspectRatio(1f)
+                            ) {
+                                AsyncImage(
+                                    model = ThumbnailLoader.createThumbnailRequest(
+                                        context = context,
+                                        mediaId = item.id,
+                                        targetSize = 400
+                                    ),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clickable { onImageClick(item.id) }
+                                )
+                            }
+                        } else {
+                            // Shimmer placeholder
+                            ShimmerPlaceholder()
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ShimmerPlaceholder() {
+    BrutalImageContainer(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BrutalColors.OffWhite)
+        )
     }
 }
