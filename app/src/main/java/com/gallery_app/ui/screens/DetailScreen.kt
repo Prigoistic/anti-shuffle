@@ -1,17 +1,23 @@
 package com.gallery_app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -57,15 +63,15 @@ fun DetailScreen(
                         modifier = Modifier.fillMaxSize()
                     )
                     
-                    // Top gradient overlay for better visibility
+                    // Top gradient overlay
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(120.dp)
+                            .height(140.dp)
                             .background(
                                 brush = Brush.verticalGradient(
                                     colors = listOf(
-                                        GlassColors.DarkBlueStart.copy(alpha = 0.7f),
+                                        GlassColors.DarkBlueStart.copy(alpha = 0.8f),
                                         GlassColors.DarkBlueStart.copy(alpha = 0f)
                                     )
                                 )
@@ -80,40 +86,61 @@ fun DetailScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        GlassIconButton(
-                            onClick = onBack,
-                            icon = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                        // Back button
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(GlassColors.GlassDark.copy(alpha = 0.5f))
+                                .clickable(onClick = onBack),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                                contentDescription = "Back",
+                                tint = GlassColors.TextPrimary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                         
-                        GlassIconButton(
-                            onClick = { showInfo = !showInfo },
-                            icon = Icons.Default.Info,
-                            contentDescription = "Info",
-                            backgroundColor = if (showInfo) 
-                                GlassColors.AccentBlue.copy(alpha = 0.5f) 
-                            else 
-                                GlassColors.GlassDark.copy(alpha = 0.6f)
-                        )
+                        // Info button
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (showInfo) GlassColors.AccentBlue.copy(alpha = 0.4f) 
+                                    else GlassColors.GlassDark.copy(alpha = 0.5f)
+                                )
+                                .clickable(onClick = { showInfo = !showInfo }),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Info,
+                                contentDescription = "Info",
+                                tint = if (showInfo) GlassColors.AccentCyan else GlassColors.TextPrimary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
                     
                     // Bottom gradient overlay
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp)
+                            .height(250.dp)
                             .align(Alignment.BottomCenter)
                             .background(
                                 brush = Brush.verticalGradient(
                                     colors = listOf(
                                         GlassColors.DarkBlueStart.copy(alpha = 0f),
-                                        GlassColors.DarkBlueStart.copy(alpha = 0.8f)
+                                        GlassColors.DarkBlueStart.copy(alpha = 0.9f)
                                     )
                                 )
                             )
                     )
                     
-                    // Info panel (when showInfo is true)
+                    // Info panel
                     if (showInfo) {
                         Box(
                             modifier = Modifier
@@ -124,25 +151,38 @@ fun DetailScreen(
                         ) {
                             GlassCard(
                                 modifier = Modifier.fillMaxWidth(),
-                                cornerRadius = 20.dp,
-                                backgroundColor = GlassColors.GlassDark.copy(alpha = 0.85f)
+                                cornerRadius = 24.dp,
+                                backgroundColor = GlassColors.GlassDark.copy(alpha = 0.9f)
                             ) {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(20.dp)
+                                        .padding(24.dp)
                                 ) {
                                     Text(
-                                        text = "Details",
+                                        text = "Photo Details",
                                         fontSize = 20.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = GlassColors.TextPrimary
+                                        color = GlassColors.TextPrimary,
+                                        letterSpacing = (-0.3).sp
                                     )
-                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Spacer(modifier = Modifier.height(20.dp))
                                     
-                                    MetadataRow("Date", formatDate(media.dateTaken))
-                                    MetadataRow("Album", media.bucketName)
-                                    MetadataRow("Size", formatBytes(media.size))
+                                    MetadataRow(
+                                        icon = Icons.Outlined.CalendarMonth,
+                                        label = "Date",
+                                        value = formatDate(media.dateTaken)
+                                    )
+                                    MetadataRow(
+                                        icon = Icons.Outlined.Folder,
+                                        label = "Album",
+                                        value = media.bucketName
+                                    )
+                                    MetadataRow(
+                                        icon = Icons.Outlined.Storage,
+                                        label = "Size",
+                                        value = formatBytes(media.size)
+                                    )
                                 }
                             }
                         }
@@ -155,30 +195,34 @@ fun DetailScreen(
                             .padding(24.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        GlassCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            backgroundColor = GlassColors.Error.copy(alpha = 0.2f)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Column(
-                                modifier = Modifier.padding(32.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                            Text(
+                                text = "Something went wrong",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = GlassColors.Error
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = state.message,
+                                fontSize = 14.sp,
+                                color = GlassColors.TextSecondary
+                            )
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(GlassColors.GlassDark.copy(alpha = 0.6f))
+                                    .clickable(onClick = onBack)
+                                    .padding(horizontal = 24.dp, vertical = 14.dp)
                             ) {
-                                GlassHeadline(
-                                    text = "Error",
-                                    color = GlassColors.Error
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                                GlassBodyText(
-                                    text = state.message,
+                                Text(
+                                    text = "Go Back",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
                                     color = GlassColors.TextPrimary
-                                )
-                                Spacer(modifier = Modifier.height(24.dp))
-                                GlassIconButton(
-                                    onClick = onBack,
-                                    icon = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Go back",
-                                    size = 56.dp,
-                                    backgroundColor = GlassColors.AccentBlue.copy(alpha = 0.3f)
                                 )
                             }
                         }
@@ -190,25 +234,42 @@ fun DetailScreen(
 }
 
 @Composable
-private fun MetadataRow(label: String, value: String) {
+private fun MetadataRow(icon: ImageVector, label: String, value: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = label,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = GlassColors.TextMuted
-        )
-        Text(
-            text = value,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = GlassColors.TextPrimary
-        )
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(GlassColors.GlassBorder.copy(alpha = 0.3f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = GlassColors.AccentBlue,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = GlassColors.TextMuted
+            )
+            Text(
+                text = value,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = GlassColors.TextPrimary
+            )
+        }
     }
 }
 

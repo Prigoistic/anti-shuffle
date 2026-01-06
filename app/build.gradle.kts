@@ -90,6 +90,9 @@ dependencies {
     // Paging 3
     implementation("androidx.paging:paging-runtime:3.2.1")
     implementation("androidx.paging:paging-compose:3.2.1")
+    
+    // Google Fonts for premium typography
+    implementation("androidx.compose.ui:ui-text-google-fonts:1.6.0")
 
     // --- Hilt DI (correct version!) ---
     implementation("com.google.dagger:hilt-android:2.50")
