@@ -15,7 +15,7 @@
         android:roundIcon="@drawable/ic_launcher_round"
         android:allowBackup="true"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Material3.DayNight">
+        android:theme="@style/Theme.GalleryApp">
         
         <!-- Disable default WorkManager initialization -->
         <provider
@@ -31,7 +31,9 @@
         
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:theme="@style/Theme.GalleryApp"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

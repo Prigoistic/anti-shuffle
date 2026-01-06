@@ -1,13 +1,12 @@
 package com.gallery_app.ui.screens
 
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Refresh
@@ -20,26 +19,27 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.gallery_app.data.GalleryImage
 import com.gallery_app.image.ThumbnailLoader
 import com.gallery_app.ui.GalleryUiState
 import com.gallery_app.ui.GalleryViewModel
 import com.gallery_app.ui.theme.*
+import java.text.SimpleDateFormat
+import java.util.*
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun GalleryScreen(
     viewModel: GalleryViewModel,
     onImageClick: (Long) -> Unit,
     onOpenFolders: () -> Unit
 ) {
-    // Trigger initial scan once when this screen first composes.
     var started by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         if (!started) {
@@ -50,38 +50,78 @@ fun GalleryScreen(
 
     val uiState by viewModel.uiState.collectAsState()
     val pagedImages = viewModel.pagedMedia.collectAsLazyPagingItems()
+    
+    // Get current date for display
+    val currentDate = remember {
+        val calendar = Calendar.getInstance()
+        val dayFormat = SimpleDateFormat("MMMM", Locale.getDefault())
+        val dayNum = calendar.get(Calendar.DAY_OF_MONTH)
+        val suffix = when {
+            dayNum in 11..13 -> "th"
+            dayNum % 10 == 1 -> "st"
+            dayNum % 10 == 2 -> "nd"
+            dayNum % 10 == 3 -> "rd"
+            else -> "th"
+        }
+        Pair(dayFormat.format(calendar.time), "$dayNum$suffix")
+    }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BrutalColors.OffWhite)
-    ) {
-        BrutalTopAppBar(
-            title = "Anti - Shuffle",
-            backgroundColor = BrutalColors.Cyan,
-            actions = {
-                BrutalIconButton(
-                    onClick = { viewModel.scanImages() },
-                    icon = Icons.Filled.Refresh,
-                    contentDescription = "Refresh",
-                    backgroundColor = BrutalColors.Yellow
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                BrutalIconButton(
-                    onClick = onOpenFolders,
-                    icon = Icons.Filled.FolderOpen,
-                    contentDescription = "Folders",
-                    backgroundColor = BrutalColors.Pink
-                )
-            }
-        )
-        
-        Box(modifier = Modifier.fillMaxSize()) {
+    GlassBackground {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+        ) {
+            // Top Bar
+            GlassTopBar(
+                navigationIcon = {
+                    GlassIconButton(
+                        onClick = { viewModel.scanImages() },
+                        icon = Icons.Filled.Refresh,
+                        contentDescription = "Refresh"
+                    )
+                },
+                actions = {
+                    GlassMenuButton(onClick = onOpenFolders)
+                }
+            )
+
             when (val state = uiState) {
-                is GalleryUiState.Loading -> LoadingScreen()
-                is GalleryUiState.Empty -> EmptyScreen(onOpenFolders, onRefresh = { viewModel.scanImages() })
-                is GalleryUiState.Error -> ErrorScreen(state.message)
+                is GalleryUiState.Loading -> {
+                    GlassLoadingIndicator()
+                }
+                is GalleryUiState.Empty -> {
+                    EmptyScreen(
+                        onOpenFolders = onOpenFolders,
+                        onRefresh = { viewModel.scanImages() }
+                    )
+                }
+                is GalleryUiState.Error -> {
+                    ErrorScreen(state.message)
+                }
                 is GalleryUiState.Success -> {
+                    // Header with date
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .padding(top = 8.dp, bottom = 16.dp)
+                    ) {
+                        Text(
+                            text = currentDate.first,
+                            fontSize = 42.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GlassColors.TextPrimary
+                        )
+                        Text(
+                            text = currentDate.second,
+                            fontSize = 42.sp,
+                            fontWeight = FontWeight.Light,
+                            color = GlassColors.TextSecondary.copy(alpha = 0.7f)
+                        )
+                    }
+                    
+                    // Gallery Grid
                     PagedGalleryGrid(
                         pagingItems = pagedImages,
                         onImageClick = onImageClick
@@ -93,102 +133,81 @@ fun GalleryScreen(
 }
 
 @Composable
-private fun LoadingScreen() {
-    BrutalLoadingBox()
-}
-
-@Composable
-private fun EmptyScreen(onOpenFolders: () -> Unit = {}, onRefresh: () -> Unit = {}) {
+private fun EmptyScreen(onOpenFolders: () -> Unit, onRefresh: () -> Unit) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BrutalColors.OffWhite),
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(24.dp)
+            modifier = Modifier.padding(32.dp)
         ) {
-            BrutalCard(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .padding(bottom = 24.dp),
-                backgroundColor = BrutalColors.Yellow
+            GlassCard(
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
                     modifier = Modifier.padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    BrutalTitle("NO IMAGES")
-                    Spacer(Modifier.height(12.dp))
-                    BrutalBody(
-                        text = "Scan your device to find images",
-                        color = BrutalColors.Black.copy(alpha = 0.7f)
+                    GlassHeadline(
+                        text = "No Photos Yet",
+                        color = GlassColors.TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    GlassBodyText(
+                        text = "Scan your device to discover photos"
                     )
                 }
             }
             
+            Spacer(modifier = Modifier.height(24.dp))
+            
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.padding(horizontal = 16.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                BrutalButton(
+                GlassIconButton(
                     onClick = onRefresh,
-                    backgroundColor = BrutalColors.Lime
-                ) {
-                    Icon(
-                        Icons.Filled.Refresh,
-                        contentDescription = null,
-                        tint = BrutalColors.Black
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        "SCAN NOW",
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Black
-                    )
-                }
-                BrutalOutlinedButton(onClick = onOpenFolders) {
-                    Icon(
-                        Icons.Filled.FolderOpen,
-                        contentDescription = null,
-                        tint = BrutalColors.Black
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        "FOLDERS",
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Black
-                    )
-                }
+                    icon = Icons.Filled.Refresh,
+                    contentDescription = "Scan",
+                    size = 56.dp,
+                    backgroundColor = GlassColors.AccentBlue.copy(alpha = 0.3f)
+                )
+                GlassIconButton(
+                    onClick = onOpenFolders,
+                    icon = Icons.Filled.FolderOpen,
+                    contentDescription = "Folders",
+                    size = 56.dp,
+                    backgroundColor = GlassColors.AccentPurple.copy(alpha = 0.3f)
+                )
             }
         }
     }
 }
+
 @Composable
 private fun ErrorScreen(msg: String) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BrutalColors.OffWhite),
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        BrutalCard(
+        GlassCard(
             modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .padding(16.dp),
-            backgroundColor = BrutalColors.Red
+                .fillMaxWidth()
+                .padding(24.dp),
+            backgroundColor = GlassColors.Error.copy(alpha = 0.2f)
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(32.dp)
             ) {
-                BrutalTitle(
-                    text = "ERROR!",
-                    color = BrutalColors.White
+                GlassHeadline(
+                    text = "Error",
+                    color = GlassColors.Error
                 )
-                Spacer(Modifier.height(16.dp))
-                BrutalBody(
+                Spacer(modifier = Modifier.height(16.dp))
+                GlassBodyText(
                     text = msg,
-                    color = BrutalColors.White
+                    color = GlassColors.TextPrimary
                 )
             }
         }
@@ -203,25 +222,24 @@ private fun PagedGalleryGrid(
     LazyVerticalGrid(
         modifier = Modifier
             .fillMaxSize()
-            .background(BrutalColors.OffWhite),
-        columns = GridCells.Adaptive(140.dp),
-        contentPadding = PaddingValues(12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+            .navigationBarsPadding(),
+        columns = GridCells.Fixed(3),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(
             count = pagingItems.itemCount,
-            key = { index -> 
-                pagingItems.peek(index)?.id ?: index
-            }
+            key = { index -> pagingItems.peek(index)?.id ?: index }
         ) { index ->
             val item = pagingItems[index]
             val context = LocalContext.current
             if (item != null) {
-                BrutalImageContainer(
+                GlassImageCard(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(1f)
+                        .aspectRatio(1f),
+                    onClick = { onImageClick(item.id) }
                 ) {
                     AsyncImage(
                         model = ThumbnailLoader.createThumbnailRequest(
@@ -233,12 +251,15 @@ private fun PagedGalleryGrid(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .fillMaxSize()
-                            .clickable { onImageClick(item.id) }
+                            .clip(RoundedCornerShape(12.dp))
                     )
                 }
             } else {
-                // Placeholder shimmer
-                ShimmerImagePlaceholder()
+                GlassShimmer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                )
             }
         }
         
@@ -246,47 +267,15 @@ private fun PagedGalleryGrid(
         when (pagingItems.loadState.append) {
             is LoadState.Loading -> {
                 items(6) {
-                    ShimmerImagePlaceholder()
+                    GlassShimmer(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
+                    )
                 }
             }
             else -> {}
         }
-    }
-}
-
-@Composable
-private fun ShimmerImagePlaceholder() {
-    val transition = rememberInfiniteTransition(label = "shimmer")
-    val translateAnim by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1000f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "shimmer"
-    )
-
-    val brush = Brush.linearGradient(
-        colors = listOf(
-            BrutalColors.OffWhite,
-            BrutalColors.White,
-            BrutalColors.OffWhite
-        ),
-        start = Offset(translateAnim - 1000f, translateAnim - 1000f),
-        end = Offset(translateAnim, translateAnim)
-    )
-
-    BrutalImageContainer(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(1f)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(brush)
-        )
     }
 }
 

@@ -1,15 +1,17 @@
 package com.gallery_app.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -21,7 +23,6 @@ import com.gallery_app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailScreen(
     id: Long,
@@ -33,121 +34,151 @@ fun DetailScreen(
     }
 
     val mediaState by viewModel.mediaState.collectAsState()
+    var showInfo by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.fillMaxSize().background(BrutalColors.Black)) {
-        when (val state = mediaState) {
-            is DetailUiState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    BrutalCard(
-                        modifier = Modifier.size(120.dp),
-                        backgroundColor = BrutalColors.Cyan
-                    ) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(
-                                color = BrutalColors.Black,
-                                strokeWidth = 4.dp
-                            )
-                        }
-                    }
+    GlassBackground {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+        ) {
+            when (val state = mediaState) {
+                is DetailUiState.Loading -> {
+                    GlassLoadingIndicator()
                 }
-            }
-            is DetailUiState.Success -> {
-                val media = state.media
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Brutal Top Bar
+                is DetailUiState.Success -> {
+                    val media = state.media
+                    
+                    // Full screen image
+                    AsyncImage(
+                        model = media.uri,
+                        contentDescription = "Full size image",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    
+                    // Top gradient overlay for better visibility
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp)
+                            .height(120.dp)
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        GlassColors.DarkBlueStart.copy(alpha = 0.7f),
+                                        GlassColors.DarkBlueStart.copy(alpha = 0f)
+                                    )
+                                )
+                            )
+                    )
+                    
+                    // Top Bar
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        BrutalIconButton(
+                        GlassIconButton(
                             onClick = onBack,
-                            icon = Icons.Default.ArrowBack,
-                            contentDescription = "Back",
-                            backgroundColor = BrutalColors.Yellow
+                            icon = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                        
+                        GlassIconButton(
+                            onClick = { showInfo = !showInfo },
+                            icon = Icons.Default.Info,
+                            contentDescription = "Info",
+                            backgroundColor = if (showInfo) 
+                                GlassColors.AccentBlue.copy(alpha = 0.5f) 
+                            else 
+                                GlassColors.GlassDark.copy(alpha = 0.6f)
                         )
                     }
-
-                    // Fullscreen Image
+                    
+                    // Bottom gradient overlay
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        AsyncImage(
-                            model = media.uri,
-                            contentDescription = "Full size image",
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-
-                    // Brutal Metadata Section
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp)
-                    ) {
-                        BrutalCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            backgroundColor = BrutalColors.Lime
+                            .height(200.dp)
+                            .align(Alignment.BottomCenter)
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        GlassColors.DarkBlueStart.copy(alpha = 0f),
+                                        GlassColors.DarkBlueStart.copy(alpha = 0.8f)
+                                    )
+                                )
+                            )
+                    )
+                    
+                    // Info panel (when showInfo is true)
+                    if (showInfo) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                                .navigationBarsPadding()
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(20.dp)
+                            GlassCard(
+                                modifier = Modifier.fillMaxWidth(),
+                                cornerRadius = 20.dp,
+                                backgroundColor = GlassColors.GlassDark.copy(alpha = 0.85f)
                             ) {
-                                BrutalHeadline("DETAILS")
-                                Spacer(modifier = Modifier.height(16.dp))
-                                
-                                MetadataRow("DATE", formatDate(media.dateTaken))
-                                MetadataRow("FOLDER", media.bucketName)
-                                MetadataRow("SIZE", formatBytes(media.size))
-                                MetadataRow("ID", media.id.toString())
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(20.dp)
+                                ) {
+                                    Text(
+                                        text = "Details",
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = GlassColors.TextPrimary
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    
+                                    MetadataRow("Date", formatDate(media.dateTaken))
+                                    MetadataRow("Album", media.bucketName)
+                                    MetadataRow("Size", formatBytes(media.size))
+                                }
                             }
                         }
                     }
                 }
-            }
-            is DetailUiState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    BrutalCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = BrutalColors.Red
+                is DetailUiState.Error -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            modifier = Modifier.padding(32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        GlassCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            backgroundColor = GlassColors.Error.copy(alpha = 0.2f)
                         ) {
-                            BrutalTitle(
-                                text = "ERROR!",
-                                color = BrutalColors.White
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            BrutalBody(
-                                text = state.message,
-                                color = BrutalColors.White
-                            )
-                            Spacer(modifier = Modifier.height(24.dp))
-                            BrutalButton(
-                                onClick = onBack,
-                                backgroundColor = BrutalColors.Yellow
+                            Column(
+                                modifier = Modifier.padding(32.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(
-                                    "GO BACK",
-                                    fontWeight = FontWeight.Black
+                                GlassHeadline(
+                                    text = "Error",
+                                    color = GlassColors.Error
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                GlassBodyText(
+                                    text = state.message,
+                                    color = GlassColors.TextPrimary
+                                )
+                                Spacer(modifier = Modifier.height(24.dp))
+                                GlassIconButton(
+                                    onClick = onBack,
+                                    icon = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Go back",
+                                    size = 56.dp,
+                                    backgroundColor = GlassColors.AccentBlue.copy(alpha = 0.3f)
                                 )
                             }
                         }
@@ -163,27 +194,27 @@ private fun MetadataRow(label: String, value: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            text = "$label:",
+            text = label,
             fontSize = 14.sp,
-            fontWeight = FontWeight.Black,
-            color = BrutalColors.Black,
-            modifier = Modifier.width(90.dp)
+            fontWeight = FontWeight.Medium,
+            color = GlassColors.TextMuted
         )
         Text(
             text = value,
             fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = BrutalColors.Black.copy(alpha = 0.8f)
+            fontWeight = FontWeight.SemiBold,
+            color = GlassColors.TextPrimary
         )
     }
 }
 
 private fun formatDate(timestamp: Long): String {
     return if (timestamp > 0) {
-        SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()).format(Date(timestamp))
+        SimpleDateFormat("MMM dd, yyyy • HH:mm", Locale.getDefault()).format(Date(timestamp))
     } else {
         "Unknown"
     }
