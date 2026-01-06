@@ -4,6 +4,12 @@ import androidx.paging.PagingSource
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 
+data class BucketInfo(
+    val bucket: String,
+    val count: Int,
+    val coverUri: String
+)
+
 @Dao
 interface MediaDao {
     @Query("SELECT * FROM media_items ORDER BY dateTaken DESC")
@@ -44,4 +50,14 @@ interface MediaDao {
 
     @Query("SELECT * FROM media_items WHERE addedTimestamp >= :timestamp ORDER BY addedTimestamp DESC")
     fun getAddedSince(timestamp: Long): Flow<List<MediaEntity>>
+
+    @Query("""
+        SELECT bucket, 
+               COUNT(*) as count, 
+               (SELECT uri FROM media_items m2 WHERE m2.bucket = media_items.bucket ORDER BY m2.dateTaken DESC LIMIT 1) as coverUri
+        FROM media_items 
+        GROUP BY bucket 
+        ORDER BY count DESC
+    """)
+    fun getBuckets(): Flow<List<BucketInfo>>
 }

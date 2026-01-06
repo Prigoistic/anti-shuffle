@@ -23,19 +23,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.gallery_app.data.GalleryImage
-import com.gallery_app.ui.GalleryUiState
+import com.gallery_app.data.db.BucketInfo
 import com.gallery_app.ui.GalleryViewModel
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import com.gallery_app.ui.theme.*
-
-data class BucketItem(
-    val name: String,
-    val count: Int,
-    val cover: GalleryImage?
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,18 +37,8 @@ fun FoldersScreen(
     onBucketClick: (String) -> Unit,
     onBack: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-
-    val buckets: List<BucketItem> = when (val s = uiState) {
-        is GalleryUiState.Success -> s.images
-            .groupBy { it.bucketName }
-            .entries
-            .sortedByDescending { it.value.size }
-            .map { (name, items) ->
-                BucketItem(name = name, count = items.size, cover = items.firstOrNull())
-            }
-        else -> emptyList()
-    }
+    // Use the new buckets StateFlow directly from ViewModel
+    val buckets by viewModel.buckets.collectAsState()
 
     Column(
         modifier = Modifier
@@ -100,8 +83,8 @@ fun FoldersScreen(
                     .fillMaxSize()
                     .background(BrutalColors.OffWhite)
             ) {
-                items(buckets, key = { it.name }) { bucket ->
-                    BucketCard(bucket = bucket, onClick = { onBucketClick(bucket.name) })
+                items(buckets, key = { it.bucket }) { bucket ->
+                    BucketCard(bucket = bucket, onClick = { onBucketClick(bucket.bucket) })
                 }
             }
         }
@@ -109,14 +92,14 @@ fun FoldersScreen(
 }
 
 @Composable
-private fun BucketCard(bucket: BucketItem, onClick: () -> Unit) {
+private fun BucketCard(bucket: BucketInfo, onClick: () -> Unit) {
     val colors = listOf(
         BrutalColors.Yellow,
         BrutalColors.Cyan,
         BrutalColors.Pink,
         BrutalColors.Lime
     )
-    val cardColor = colors[bucket.name.hashCode().mod(colors.size)]
+    val cardColor = colors[bucket.bucket.hashCode().mod(colors.size)]
     
     BrutalCard(
         modifier = Modifier.fillMaxWidth(),
@@ -130,8 +113,8 @@ private fun BucketCard(bucket: BucketItem, onClick: () -> Unit) {
                     .aspectRatio(1.3f)
             ) {
                 AsyncImage(
-                    model = bucket.cover?.uri,
-                    contentDescription = bucket.name,
+                    model = bucket.coverUri,
+                    contentDescription = bucket.bucket,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -145,7 +128,7 @@ private fun BucketCard(bucket: BucketItem, onClick: () -> Unit) {
             ) {
                 Column {
                     Text(
-                        text = bucket.name.uppercase(),
+                        text = bucket.bucket.uppercase(),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Black,
                         color = BrutalColors.Black,

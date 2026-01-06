@@ -3,6 +3,7 @@ package com.gallery_app.data.repository
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
+import com.gallery_app.data.db.BucketInfo
 import com.gallery_app.data.db.MediaDao
 import com.gallery_app.data.db.MediaEntity
 import kotlinx.coroutines.flow.Flow
@@ -72,5 +73,9 @@ class MediaRepositoryImpl @Inject constructor(
 
     override suspend fun getAllIds(): List<Long> {
         return mediaDao.getAllIds()
+    }
+
+    override fun getBuckets(): Flow<List<BucketInfo>> {
+        return mediaDao.getBuckets()
     }
 }

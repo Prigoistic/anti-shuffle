@@ -12,12 +12,15 @@ import com.gallery_app.data.repository.MediaRepository
 import com.gallery_app.data.mappers.toEntity
 import com.gallery_app.data.mappers.toGalleryImage
 import com.gallery_app.data.sync.DifferentialSyncEngine
+import com.gallery_app.data.db.BucketInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -43,6 +46,15 @@ class GalleryViewModel @Inject constructor(
             pagingData.map { it.toGalleryImage() }
         }
         .cachedIn(viewModelScope)
+
+    // Buckets/Folders - reactive StateFlow from database
+    val buckets: StateFlow<List<BucketInfo>> = mediaRepository
+        .getBuckets()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
     init {
         checkDatabaseState()
