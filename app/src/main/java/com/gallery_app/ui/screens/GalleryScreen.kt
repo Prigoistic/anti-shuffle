@@ -170,43 +170,98 @@ private fun DateGroupedGallery(
     pagingItems: LazyPagingItems<GalleryImage>,
     onImageClick: (Long) -> Unit
 ) {
-    // Group images by date
-    val groupedImages = remember(pagingItems.itemCount) {
-        val images = (0 until pagingItems.itemCount).mapNotNull { pagingItems.peek(it) }
-        images.groupBy { getDateLabel(it.dateTaken) }
-            .toList()
-            .sortedByDescending { (_, imgs) -> imgs.firstOrNull()?.dateTaken ?: 0L }
-    }
+    val context = LocalContext.current
     
-    if (groupedImages.isEmpty() && pagingItems.loadState.refresh is LoadState.Loading) {
+    if (pagingItems.itemCount == 0 && pagingItems.loadState.refresh is LoadState.Loading) {
         GlassLoadingIndicator()
         return
     }
     
-    LazyColumn(
+    // Pre-calculate header positions for displayed items
+    val headerPositions = remember(pagingItems.itemSnapshotList) {
+        val positions = mutableMapOf<Int, Pair<String, Int>>() // index -> (label, count)
+        var lastLabel: String? = null
+        
+        pagingItems.itemSnapshotList.forEachIndexed { index, image ->
+            if (image != null) {
+                val label = getDateLabel(image.dateTaken)
+                if (label != lastLabel) {
+                    // Count how many consecutive items have this label
+                    var count = 1
+                    for (i in (index + 1) until pagingItems.itemSnapshotList.size) {
+                        val nextImage = pagingItems.itemSnapshotList[i]
+                        if (nextImage != null && getDateLabel(nextImage.dateTaken) == label) {
+                            count++
+                        } else {
+                            break
+                        }
+                    }
+                    positions[index] = Pair(label, count)
+                    lastLabel = label
+                }
+            }
+        }
+        positions
+    }
+    
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(3),
         modifier = Modifier
             .fillMaxSize()
             .navigationBarsPadding(),
-        contentPadding = PaddingValues(bottom = 16.dp)
+        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        groupedImages.forEach { (dateLabel, images) ->
-            // Date header
-            item(key = "header_$dateLabel") {
-                DateHeader(dateLabel = dateLabel, count = images.size)
+        // Iterate through all items
+        for (index in 0 until pagingItems.itemCount) {
+            // Check if we need a header before this item
+            headerPositions[index]?.let { (label, count) ->
+                item(
+                    key = "header_${label}_$index",
+                    span = { androidx.compose.foundation.lazy.grid.GridItemSpan(3) }
+                ) {
+                    DateHeader(dateLabel = label, count = count)
+                }
             }
             
-            // Images grid for this date
-            item(key = "grid_$dateLabel") {
-                DateImageGrid(
-                    images = images,
-                    onImageClick = onImageClick
-                )
+            // Add image item - accessing pagingItems[index] triggers loading
+            item(key = "image_$index") {
+                val image = pagingItems[index]
+                if (image != null) {
+                    Box(
+                        modifier = Modifier
+                            .aspectRatio(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onImageClick(image.id) }
+                    ) {
+                        AsyncImage(
+                            model = ThumbnailLoader.createThumbnailRequest(
+                                context = context,
+                                mediaId = image.id,
+                                targetSize = 400
+                            ),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                } else {
+                    // Placeholder while loading
+                    GlassShimmer(
+                        modifier = Modifier
+                            .aspectRatio(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                    )
+                }
             }
         }
         
         // Loading indicator at bottom
         if (pagingItems.loadState.append is LoadState.Loading) {
-            item {
+            item(
+                span = { androidx.compose.foundation.lazy.grid.GridItemSpan(3) }
+            ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -217,6 +272,26 @@ private fun DateGroupedGallery(
                         color = GlassColors.AccentBlue,
                         strokeWidth = 2.dp,
                         modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        }
+        
+        // Error handling for append
+        if (pagingItems.loadState.append is LoadState.Error) {
+            item(
+                span = { androidx.compose.foundation.lazy.grid.GridItemSpan(3) }
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Error loading more images",
+                        color = GlassColors.Error,
+                        fontSize = 14.sp
                     )
                 }
             }
@@ -287,57 +362,6 @@ private fun DateHeader(dateLabel: String, count: Int) {
                     fontWeight = FontWeight.Medium,
                     color = GlassColors.TextSecondary
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DateImageGrid(
-    images: List<GalleryImage>,
-    onImageClick: (Long) -> Unit
-) {
-    val context = LocalContext.current
-    
-    // Calculate rows (3 columns)
-    val rows = images.chunked(3)
-    
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        rows.forEach { rowImages ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                rowImages.forEach { image ->
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .aspectRatio(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onImageClick(image.id) }
-                    ) {
-                        AsyncImage(
-                            model = ThumbnailLoader.createThumbnailRequest(
-                                context = context,
-                                mediaId = image.id,
-                                targetSize = 400
-                            ),
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
-                
-                // Fill remaining space if row is incomplete
-                repeat(3 - rowImages.size) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
             }
         }
     }

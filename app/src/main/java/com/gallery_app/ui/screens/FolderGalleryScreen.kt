@@ -3,7 +3,8 @@ package com.gallery_app.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -179,53 +180,118 @@ fun FolderGalleryScreen(
                     }
                 }
                 else -> {
-                    // Group images by date
-                    val groupedImages = remember(pagedImages.itemCount) {
-                        val images = (0 until pagedImages.itemCount).mapNotNull { pagedImages.peek(it) }
-                        images.groupBy { getDateLabel(it.dateTaken) }
-                            .toList()
-                            .sortedByDescending { (_, imgs) -> imgs.firstOrNull()?.dateTaken ?: 0L }
+                    DateGroupedFolderGallery(
+                        bucket = bucket,
+                        pagedImages = pagedImages,
+                        onImageClick = onImageClick
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DateGroupedFolderGallery(
+    bucket: String,
+    pagedImages: androidx.paging.compose.LazyPagingItems<GalleryImage>,
+    onImageClick: (Long) -> Unit
+) {
+    val context = LocalContext.current
+    
+    // Pre-calculate header positions for displayed items
+    val headerPositions = remember(pagedImages.itemSnapshotList) {
+        val positions = mutableMapOf<Int, Pair<String, Int>>()
+        var lastLabel: String? = null
+        
+        pagedImages.itemSnapshotList.forEachIndexed { index, image ->
+            if (image != null) {
+                val label = getDateLabel(image.dateTaken)
+                if (label != lastLabel) {
+                    var count = 1
+                    for (i in (index + 1) until pagedImages.itemSnapshotList.size) {
+                        val nextImage = pagedImages.itemSnapshotList[i]
+                        if (nextImage != null && getDateLabel(nextImage.dateTaken) == label) {
+                            count++
+                        } else {
+                            break
+                        }
                     }
-                    
-                    LazyColumn(
+                    positions[index] = Pair(label, count)
+                    lastLabel = label
+                }
+            }
+        }
+        positions
+    }
+    
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(3),
+        modifier = Modifier
+            .fillMaxSize()
+            .navigationBarsPadding(),
+        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        for (index in 0 until pagedImages.itemCount) {
+            // Check if we need a header before this item
+            headerPositions[index]?.let { (label, count) ->
+                item(
+                    key = "header_${bucket}_${label}_$index",
+                    span = { androidx.compose.foundation.lazy.grid.GridItemSpan(3) }
+                ) {
+                    DateHeader(dateLabel = label, count = count)
+                }
+            }
+            
+            // Add image item
+            item(key = "image_${bucket}_$index") {
+                val image = pagedImages[index]
+                if (image != null) {
+                    Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .navigationBarsPadding(),
-                        contentPadding = PaddingValues(bottom = 16.dp)
+                            .aspectRatio(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onImageClick(image.id) }
                     ) {
-                        groupedImages.forEach { (dateLabel, images) ->
-                            // Date header
-                            item(key = "header_${bucket}_$dateLabel") {
-                                DateHeader(dateLabel = dateLabel, count = images.size)
-                            }
-                            
-                            // Images grid for this date
-                            item(key = "grid_${bucket}_$dateLabel") {
-                                DateImageGrid(
-                                    images = images,
-                                    onImageClick = onImageClick
-                                )
-                            }
-                        }
-                        
-                        // Loading indicator
-                        if (pagedImages.loadState.append is LoadState.Loading) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator(
-                                        color = GlassColors.AccentBlue,
-                                        strokeWidth = 2.dp,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                            }
-                        }
+                        AsyncImage(
+                            model = ThumbnailLoader.createThumbnailRequest(
+                                context = context,
+                                mediaId = image.id,
+                                targetSize = 400
+                            ),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
+                } else {
+                    GlassShimmer(
+                        modifier = Modifier
+                            .aspectRatio(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                    )
+                }
+            }
+        }
+        
+        // Loading indicator at bottom
+        if (pagedImages.loadState.append is LoadState.Loading) {
+            item(
+                span = { androidx.compose.foundation.lazy.grid.GridItemSpan(3) }
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = GlassColors.AccentBlue,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             }
         }
@@ -275,54 +341,6 @@ private fun DateHeader(dateLabel: String, count: Int) {
             fontWeight = FontWeight.Medium,
             color = GlassColors.TextMuted
         )
-    }
-}
-
-@Composable
-private fun DateImageGrid(
-    images: List<GalleryImage>,
-    onImageClick: (Long) -> Unit
-) {
-    val context = LocalContext.current
-    val rows = images.chunked(3)
-    
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        rows.forEach { rowImages ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                rowImages.forEach { image ->
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .aspectRatio(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onImageClick(image.id) }
-                    ) {
-                        AsyncImage(
-                            model = ThumbnailLoader.createThumbnailRequest(
-                                context = context,
-                                mediaId = image.id,
-                                targetSize = 400
-                            ),
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
-                
-                repeat(3 - rowImages.size) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-            }
-        }
     }
 }
 
